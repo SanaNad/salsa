@@ -1,0 +1,4 @@
+salsa
+=====
+
+Salsa algorithm
