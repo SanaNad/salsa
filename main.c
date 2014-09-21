@@ -14,11 +14,11 @@ int main()
 {
 	struct salsa_context *ctx;
 	uint8_t *buf, *k, nonce[8], key[32];
-	char s[10000];
+	char s[1000];
 	int buflen, keylen, i;
 	
 	keylen = 32;
-	buflen = 10000;
+	buflen = 1000;
 	
 	memset(s, 'q', sizeof(s));
 	memset(key, 'k', sizeof(key));

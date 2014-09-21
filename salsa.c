@@ -67,6 +67,8 @@ salsa_context_free(struct salsa_context **ctx)
 int
 salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen, uint8_t nonce[8])
 {
+	int i;
+
 	if(keylen <= SALSA16)
 		ctx->keylen = SALSA16;
 	else if(keylen <= SALSA32)
@@ -76,12 +78,17 @@ salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen, uin
 
 	memcpy(ctx->key, key, keylen);
 
+	// Fill the nonce user data: nonce[0] - nonce[7].
 	memcpy(ctx->nonce, nonce, 8);
+	
+	// Fill the nonce: nonce[8] - nonce[15].
+	for(i = 8; i < 16; i++)
+		ctx->nonce[i] = i;
 
 	return 0;
 }
 
-void
+static void
 quarterround(uint32_t *y0, uint32_t *y1, uint32_t *y2, uint32_t *y3)
 {
 	*y1 = *y1 ^ (ROTL32((*y0 + *y3), 7));
@@ -90,7 +97,7 @@ quarterround(uint32_t *y0, uint32_t *y1, uint32_t *y2, uint32_t *y3)
 	*y0 = *y0 ^ (ROTL32((*y3 + *y2), 18));
 }
 
-void
+static void
 rowround(uint32_t y[16])
 {
 	quarterround(&y[0], &y[1], &y[2], &y[3]);
@@ -99,7 +106,7 @@ rowround(uint32_t y[16])
 	quarterround(&y[15], &y[12], &y[13], &y[14]);
 }
 
-void
+static void
 columnround(uint32_t x[16])
 {
 	quarterround(&x[0], &x[4], &x[8], &x[12]);
@@ -108,7 +115,7 @@ columnround(uint32_t x[16])
 	quarterround(&x[15], &x[3], &x[7], &x[11]);
 }
 
-void
+static void
 doubleround(uint32_t x[16])
 {
 	columnround(x);
@@ -116,7 +123,7 @@ doubleround(uint32_t x[16])
 }
 
 // Salsa hash function. Get seq array
-void
+static void
 salsa20(uint8_t seq[64])
 {
 	uint32_t x[16], z[16];
@@ -140,7 +147,7 @@ salsa20(uint8_t seq[64])
 }
 
 // Salsa expansion of key. Expansion of key depends from key length
-void
+static void
 salsa_expand_key(struct salsa_context *ctx)
 {
 	int i, j;
