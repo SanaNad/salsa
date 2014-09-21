@@ -1,3 +1,8 @@
+/* This library implements the SALSA20 algorithm
+ * Developer - Daniel J. Bernstein.
+ * SALSA20 - the winner eSTREAM. Home page - http://www.ecrypt.eu.org/stream/.
+*/
+
 #ifndef SALSA_H_
 #define SALSA_H_
 
@@ -12,7 +17,4 @@ int salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen,
 void salsa_encrypt(struct salsa_context *ctx, uint8_t *buf, int buflen);
 void salsa_decrypt(struct salsa_context *ctx, uint8_t *buf, int buflen);
 
-void test(struct salsa_context *ctx);
-
-//void salsa20(uint8_t seq[64]);
 #endif

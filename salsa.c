@@ -1,3 +1,17 @@
+/* This program implements the SALSA20 algorithm.
+ * Salsa20 developed Daniel J. Bernstein. Winner the eSTREAM.
+ * The SALSA20 home page - http://www.ecrypt.eu.org/stream/.
+ * ----------------------
+ * Author: Rostislav Gashin (rost1993). The State University of Syktyvkar (Amplab).
+ * Assistant project manager: Lipin Boris (dzruyk).
+ * Project manager: Grisha Sitkarev.
+ * ----------------------
+ * Salsa20 operations based on a 32-bit summation bitwise (XOR) and shift operations.
+ * The algorithm uses a hash function with 20 cycles.
+ * ----------------------
+ * Russia, Komi Republic, Syktyvkar - 21.09.2014.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,12 +19,19 @@
 
 #include "salsa.h"
 
-#define	ROTL32(v, n)	((v << n) | (v >> (32 - n)))
 #define SALSA16		16
 #define	SALSA32		32
 
+#define	ROTL32(v, n)	((v << n) | (v >> (32 - n)))
 #define LITTLEENDIAN(b)	(b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24))
 
+
+/* Salsa context
+ * keylen - chiper key length
+ * key - chiper key
+ * seq - array of intermediate values
+ * nonce - 16-byte array with a unique number. 8 bytes are filled by the user
+*/
 struct salsa_context {
 	int keylen;
 	uint8_t key[SALSA32];
@@ -18,6 +39,7 @@ struct salsa_context {
 	uint8_t nonce[16];
 };
 
+// Allocates memory for the salsa context
 struct salsa_context * 
 salsa_context_new()
 {
@@ -32,27 +54,25 @@ salsa_context_new()
 	return ctx;
 }
 
+// Delete salsa context
 void
 salsa_context_free(struct salsa_context **ctx)
 {
-	memset((*ctx)->key, 0, sizeof((*ctx)->key));
-	memset((*ctx)->seq, 0, sizeof((*ctx)->seq));
-	memset((*ctx)->nonce, 0, sizeof((*ctx)->nonce));
-
 	free(*ctx);
 	*ctx = NULL;
 }
 
+// Fill the salsa context (key and nonce)
+// Return value: 0 (if all is well), -1 (if all bad)
 int
 salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen, uint8_t nonce[8])
 {
 	if(keylen <= SALSA16)
 		ctx->keylen = SALSA16;
-	else 
-		if(keylen <= SALSA32)
-			ctx->keylen = SALSA32;
-	     	else
-	     		return -1;
+	else if(keylen <= SALSA32)
+		ctx->keylen = SALSA32;
+	else
+	     	return -1;
 
 	memcpy(ctx->key, key, keylen);
 
@@ -95,21 +115,7 @@ doubleround(uint32_t x[16])
 	rowround(x);
 }
 
-/*uint32_t
-littleendian(uint8_t *b)
-{
-	return (b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24));
-}*/
-
-/*void
-rev_littleendian(uint32_t x, uint8_t *b)
-{
-	b[0] = x;
-	b[1] = x >> 8;
-	b[2] = x >> 16;
-	b[3] = x >> 24;
-}*/
-
+// Salsa hash function. Get seq array
 void
 salsa20(uint8_t seq[64])
 {
@@ -117,8 +123,8 @@ salsa20(uint8_t seq[64])
 	int i, j;
 
 	for(i = 0; i < 16; i++)
-		//x[i] = z[i] = littleendian(seq + (i * 4));
 		x[i] = z[i] = LITTLEENDIAN((seq + (i * 4)));
+
 	for(i = 0; i < 10; i++)
 		doubleround(z);
 	
@@ -133,12 +139,14 @@ salsa20(uint8_t seq[64])
 	}
 }
 
+// Salsa expansion of key. Expansion of key depends from key length
 void
 salsa_expand_key(struct salsa_context *ctx)
 {
 	int i, j;
 	uint8_t *expand;
 	
+	// Unique constant for key length 16 byte
 	uint8_t key_expand_16 [] = {
 		'e', 'x', 'p', 'a',
 		'n', 'd', ' ', '1',
@@ -146,6 +154,7 @@ salsa_expand_key(struct salsa_context *ctx)
 		't', 'e', ' ', 'k'
 	};
 
+	// Unique constant for key length 32 byte
 	uint8_t key_expand_32 [] = {
 		'e', 'x', 'p', 'a',
 		'n', 'd', ' ', '3',
@@ -176,10 +185,16 @@ salsa_expand_key(struct salsa_context *ctx)
 		ctx->seq[24 + i] = ctx->nonce[i];
 		ctx->seq[44 + i] = ctx->key[ctx->keylen - 16 + i];
 	}
-
+	
+	// Salsa hash function
 	salsa20(ctx->seq);
 }
 
+/* Salsa encrypt algorithm.
+ * ctx - pointer on salsa context
+ * buf - pointer on buffer data
+ * buflen - length the data buffer
+*/
 void
 salsa_encrypt(struct salsa_context *ctx, uint8_t *buf, int buflen)
 {
@@ -191,25 +206,10 @@ salsa_encrypt(struct salsa_context *ctx, uint8_t *buf, int buflen)
 		buf[i] ^= ctx->seq[i % 64];
 }
 
+// Salsa decrypt function. See salsa_encrypt
 void
 salsa_decrypt(struct salsa_context *ctx, uint8_t *buf, int buflen)
 {
 	salsa_encrypt(ctx, buf, buflen);
 }
-
-void
-test(struct salsa_context *ctx)
-{
-	int i;
-
-	for(i = 0; i < 32; i++)
-		printf("%d ", ctx->key[i]);
-	printf("\n\n");
-
-	for(i = 0; i < 8; i++)
-		printf("%d - ", ctx->nonce[i]);
-	printf("\n\n");
-	printf("keylen = %d\n", ctx->keylen);
-}
-
 
