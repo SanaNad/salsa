@@ -130,7 +130,7 @@ salsa20(struct salsa_context *ctx, uint32_t x[16])
 		x[ 5] ^= ROTL32((x[ 4] + x[ 7]), 18);
 	
 		x[11] ^= ROTL32((x[10] + x[ 9]), 7);
-		x [8] ^= ROTL32((x[11] + x[10]), 9);
+		x[ 8] ^= ROTL32((x[11] + x[10]), 9);
 		x[ 9] ^= ROTL32((x[ 8] + x[11]), 13);
 		x[10] ^= ROTL32((x[ 9] + x[ 8]), 18);
 
