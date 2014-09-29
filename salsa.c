@@ -151,7 +151,6 @@ salsa20(struct salsa_context *ctx, uint32_t x[16])
 	}
 }
 
-
 // Salsa expansion of key. Expansion of key depends from key length
 static void
 salsa_expand_key(struct salsa_context *ctx)
