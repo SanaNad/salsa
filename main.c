@@ -9,16 +9,18 @@
 
 #include "salsa.h"
 
+#define	BUFLEN	1000
+#define KEYLEN	32
 
 int main()
 {
 	struct salsa_context *ctx;
-	uint8_t *buf, *k, nonce[8], key[32];
-	char s[1000];
+	uint8_t *buf, *k, nonce[8], key[KEYLEN];
+	char s[BUFLEN];
 	int buflen, keylen, i;
 	
-	keylen = 32;
-	buflen = 1000;
+	keylen = KEYLEN;
+	buflen = BUFLEN;
 	
 	memset(s, 'q', sizeof(s));
 	memset(key, 'k', sizeof(key));

@@ -9,7 +9,7 @@
  * Salsa20 operations based on a 32-bit summation bitwise (XOR) and shift operations.
  * The algorithm uses a hash function with 20 cycles.
  * ----------------------
- * Russia, Komi Republic, Syktyvkar - 29.09.2014, version 2.
+ * Russia, Komi Republic, Syktyvkar - 21.09.2014, version 1.
 */
 
 #include <stdio.h>
@@ -88,78 +88,71 @@ salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen, uin
 	return 0;
 }
 
-// Salsa hash function
 static void
-salsa20(struct salsa_context *ctx, uint32_t x[16])
+quarterround(uint32_t *y0, uint32_t *y1, uint32_t *y2, uint32_t *y3)
 {
-	uint32_t z[16];
+	*y1 = *y1 ^ (ROTL32((*y0 + *y3), 7));
+	*y2 = *y2 ^ (ROTL32((*y1 + *y0), 9));
+	*y3 = *y3 ^ (ROTL32((*y2 + *y1), 13));
+	*y0 = *y0 ^ (ROTL32((*y3 + *y2), 18));
+}
+
+static void
+rowround(uint32_t y[16])
+{
+	quarterround(&y[0], &y[1], &y[2], &y[3]);
+	quarterround(&y[5], &y[6], &y[7], &y[4]);
+	quarterround(&y[10], &y[11], &y[8], &y[9]);
+	quarterround(&y[15], &y[12], &y[13], &y[14]);
+}
+
+static void
+columnround(uint32_t x[16])
+{
+	quarterround(&x[0], &x[4], &x[8], &x[12]);
+	quarterround(&x[5], &x[9], &x[13], &x[1]);
+	quarterround(&x[10], &x[14], &x[2], &x[6]);
+	quarterround(&x[15], &x[3], &x[7], &x[11]);
+}
+
+static void
+doubleround(uint32_t x[16])
+{
+	columnround(x);
+	rowround(x);
+}
+
+// Salsa hash function. Get seq array
+static void
+salsa20(uint8_t seq[64])
+{
+	uint32_t x[16], z[16];
 	int i, j;
 
 	for(i = 0; i < 16; i++)
-		z[i] = x[i];
+		x[i] = z[i] = LITTLEENDIAN((seq + (i * 4)));
 
-	for(i = 0; i < 10; i++) {
-		x[ 4] ^= ROTL32((x[ 0] + x[12]), 7);
-		x[ 8] ^= ROTL32((x[ 4] + x[ 0]), 9);
-		x[12] ^= ROTL32((x[ 8] + x[ 4]), 13);
-		x[ 0] ^= ROTL32((x[12] + x[ 8]), 18);
-
-		x[ 9] ^= ROTL32((x[ 5] + x[ 1]), 7);
-		x[13] ^= ROTL32((x[ 9] + x[ 5]), 9);
-		x[ 1] ^= ROTL32((x[13] + x[ 9]), 13);
-		x[ 5] ^= ROTL32((x[ 1] + x[13]), 18);
-
-		x[14] ^= ROTL32((x[10] + x[ 6]), 7);
-		x[ 2] ^= ROTL32((x[14] + x[10]), 9);
-		x[ 6] ^= ROTL32((x[ 2] + x[14]), 13);
-		x[10] ^= ROTL32((x[ 6] + x[ 2]), 18);
-
-		x[ 3] ^= ROTL32((x[15] + x[11]), 7);
-		x[ 7] ^= ROTL32((x[ 3] + x[15]), 9);
-		x[11] ^= ROTL32((x[ 7] + x[ 3]), 13);
-		x[15] ^= ROTL32((x[11] + x[ 7]), 18);
-	
-		x[ 1] ^= ROTL32((x[ 0] + x[ 3]), 7);
-		x[ 2] ^= ROTL32((x[ 1] + x[ 0]), 9);
-		x[ 3] ^= ROTL32((x[ 2] + x[ 1]), 13);
-		x[ 0] ^= ROTL32((x[ 3] + x[ 2]), 18);
-
-		x[ 6] ^= ROTL32((x[ 5] + x[ 4]), 7);
-		x[ 7] ^= ROTL32((x[ 6] + x[ 5]), 9);
-		x[ 4] ^= ROTL32((x[ 7] + x[ 6]), 13);
-		x[ 5] ^= ROTL32((x[ 4] + x[ 7]), 18);
-	
-		x[11] ^= ROTL32((x[10] + x[ 9]), 7);
-		x [8] ^= ROTL32((x[11] + x[10]), 9);
-		x[ 9] ^= ROTL32((x[ 8] + x[11]), 13);
-		x[10] ^= ROTL32((x[ 9] + x[ 8]), 18);
-
-		x[12] ^= ROTL32((x[15] + x[14]), 7);
-		x[13] ^= ROTL32((x[12] + x[15]), 9);
-		x[14] ^= ROTL32((x[13] + x[12]), 13);
-		x[15] ^= ROTL32((x[14] + x[13]), 18);
-	}
+	for(i = 0; i < 10; i++)
+		doubleround(z);
 	
 	j = 0;
-
+	
 	for(i = 0; i < 16; i++) {
 		z[i] += x[i];
-		ctx->seq[j++] = (uint8_t)(z[i]);
-		ctx->seq[j++] = (uint8_t)(z[i] >> 8);
-		ctx->seq[j++] = (uint8_t)(z[i] >> 16);
-		ctx->seq[j++] = (uint8_t)(z[i] >> 24);
+		seq[j++] = (uint8_t)(z[i]);
+		seq[j++] = (uint8_t)(z[i] >> 8);
+		seq[j++] = (uint8_t)(z[i] >> 16);
+		seq[j++] = (uint8_t)(z[i] >> 24);
 	}
 }
-
 
 // Salsa expansion of key. Expansion of key depends from key length
 static void
 salsa_expand_key(struct salsa_context *ctx)
 {
 	int i, j;
-	uint32_t x[16];
 	uint8_t *expand;
-		
+	
 	// Unique constant for key length 16 byte
 	uint8_t key_expand_16 [] = {
 		'e', 'x', 'p', 'a',
@@ -179,23 +172,29 @@ salsa_expand_key(struct salsa_context *ctx)
 	switch(ctx->keylen) {
 	case SALSA16 :
 		expand = (uint8_t *)key_expand_16;
-		j = 0;
 		break;
 	case SALSA32 :
 		expand = (uint8_t *)key_expand_32;
-		j = 4;
 		break;
 	}
 
-	for(i = 0; i < 4; i++) {
-		x[i * 5] = LITTLEENDIAN((expand + (i * 4)));
-		x[i + 1] = LITTLEENDIAN((ctx->key + (i * 4)));
-		x[i + 6] = LITTLEENDIAN((ctx->nonce + (i * 4)));
-		x[i + 11] = LITTLEENDIAN((ctx->key + ((j + i) * 4)));
+	j = 0;
+	
+	for(i = 0; i < 64; i+=20) {
+		ctx->seq[i] = expand[j++];
+		ctx->seq[i + 1] = expand[j++];
+		ctx->seq[i + 2] = expand[j++];
+		ctx->seq[i + 3] = expand[j++];
 	}
 
+	for(i = 0; i < 16; i++) {
+		ctx->seq[4 + i] = ctx->key[i];
+		ctx->seq[24 + i] = ctx->nonce[i];
+		ctx->seq[44 + i] = ctx->key[ctx->keylen - 16 + i];
+	}
+	
 	// Salsa hash function
-	salsa20(ctx, x);
+	salsa20(ctx->seq);
 }
 
 /* Salsa encrypt algorithm.
@@ -209,7 +208,7 @@ salsa_encrypt(struct salsa_context *ctx, uint8_t *buf, int buflen)
 	int i;
 
 	salsa_expand_key(ctx);	
-		
+	
 	for(i = 0; i < buflen; i++)
 		buf[i] ^= ctx->seq[i % 64];
 }
