@@ -27,7 +27,7 @@ int main()
 	memset(nonce, 1, sizeof(nonce));
 
 	if((ctx = salsa_context_new()) == NULL) {
-		printf("Error allocates memory!\n");
+		printf("Memory allocation error!\n");
 		exit(1);
 	}
 	
@@ -35,7 +35,7 @@ int main()
 	buf = (uint8_t *)&s[0];
 
 	if (salsa_set_key_and_nonce(ctx, k, keylen, nonce)) {
-		printf("Error fill salsa context!\n");
+		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 
