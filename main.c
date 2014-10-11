@@ -15,7 +15,7 @@
 int main()
 {
 	struct salsa_context *ctx;
-	uint8_t *buf, *k, nonce[8], key[KEYLEN];
+	uint8_t *buf, nonce[8], key[KEYLEN];
 	char s[BUFLEN];
 	int buflen, keylen, i;
 	
@@ -31,10 +31,9 @@ int main()
 		exit(1);
 	}
 	
-	k = &key;
 	buf = (uint8_t *)&s[0];
 
-	if (salsa_set_key_and_nonce(ctx, k, keylen, nonce)) {
+	if (salsa_set_key_and_nonce(ctx, (uint8_t *)key, keylen, nonce)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}

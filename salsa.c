@@ -220,3 +220,89 @@ salsa_decrypt(struct salsa_context *ctx, uint8_t *buf, int buflen)
 	salsa_encrypt(ctx, buf, buflen);
 }
 
+// Salsa20 test vectors
+void
+salsa_test_vectors(struct salsa_context *ctx, uint32_t x[16])
+{
+	uint8_t key[32],nonce[8];
+	int i, j;
+
+	// Test salsa20 hash function
+	printf("\nTest salsa20 hash function!\nArray sequence input:\n");
+	
+	for(i = 0; i < 16; i+=2) {
+		for(j = i; j <= (i+1); j++)
+			printf("  %3d  %3d  %3d  %3d", (uint8_t)x[j], (uint8_t)(x[j] >> 8), (uint8_t)(x[j] >> 16), (uint8_t)(x[j] >> 24));
+		printf("\n");
+	}
+
+	salsa20(ctx, x);
+
+	printf("\nArray sequence output:\n");
+
+	for(i = 0; i < 64; i+=8) {
+		for(j = i; j <=(i+7) ; j++)
+			printf("  %3d", ctx->seq[j]);
+		printf("\n");
+	}
+	
+	/* Tests expansion function
+	 * secret key: k0 = (1, 2, 3,..., 16) and k1 = (201, 202, 203,..., 216 )
+	 * array nonce: n = (101, 102, 103,..., 116)
+	*/
+	
+	// Get the key according to a manual
+	for(i = 0; i < 16; i++) {
+		key[i] = i + 1;
+		key[16 + i] = 201 + i;
+	}      
+	
+	// Get the array according to a manual nonce[0] - nonce[7]
+	for(i = 0; i < 8; i++)
+		nonce[i] = 101 + i;
+
+	if(salsa_set_key_and_nonce(ctx, (uint8_t *)key, 16, nonce)) {
+		printf("Salsa context filling error (key 16-byte)!\n");
+		exit(1);
+	}
+	
+	// Get the according to a manual nonce[8] - nonce[15]
+	for(i = 8; i < 16; i++)
+		ctx->nonce[i] = 101 + i;
+
+	salsa_expand_key(ctx);
+
+	printf("\n\nTests salsa20 expansion function!\n");
+	printf("Secret key: k0 = (1, 2, 3,..., 16) k1 = (201, 202, 203,..., 216)\n");
+	printf("Array nonce: n = (101, 102, 103,..., 116)\n");
+
+	printf("\nArray sequence output (16-byte key):\n");
+	
+	for(i = 0; i < 64; i+=8) {
+		for(j = i; j <=(i+7) ; j++)
+			printf("  %3d", ctx->seq[j]);
+		printf("\n");
+	}
+	
+	if(salsa_set_key_and_nonce(ctx, (uint8_t *)key, 32, nonce)) {
+		printf("Salsa context filling error (key 16-byte)!\n");
+		exit(1);
+	}
+	 
+	// Get the according to a manual nonce[8] - nonce[15]
+	for(i = 8; i < 16; i++)
+		ctx->nonce[i] = 101 + i;
+
+	salsa_expand_key(ctx);
+	
+	printf("\nArray sequence output (32-byte key:)\n");
+	
+	for(i = 0; i < 64; i+=8) {
+		for(j = i; j < (i+8); j++)
+			printf("  %3d", ctx->seq[j]);
+		printf("\n");
+	}
+
+	printf("\n");
+}
+

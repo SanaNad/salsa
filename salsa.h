@@ -17,4 +17,7 @@ int salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen,
 void salsa_encrypt(struct salsa_context *ctx, uint8_t *buf, int buflen);
 void salsa_decrypt(struct salsa_context *ctx, uint8_t *buf, int buflen);
 
+// Test vectors to verify the algorithm Salsa20
+void salsa_test_vectors(struct salsa_context *ctx, uint32_t x[16]);
+
 #endif
