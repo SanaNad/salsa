@@ -31,17 +31,18 @@
  * key - chiper key
  * seq - array of intermediate values
  * nonce - 16-byte array with a unique number. 8 bytes are filled by the user
+ * x - intermediate array
 */
 struct salsa_context {
 	int keylen;
 	uint8_t key[SALSA32];
-	uint8_t seq[64];
 	uint8_t nonce[16];
+	uint32_t x[16];
 };
 
 // Allocates memory for the salsa context
 struct salsa_context * 
-salsa_context_new()
+salsa_context_new(void)
 {
 	struct salsa_context *ctx;
 	ctx = malloc(sizeof(*ctx));
@@ -65,14 +66,35 @@ salsa_context_free(struct salsa_context **ctx)
 // Fill the salsa context (key and nonce)
 // Return value: 0 (if all is well), -1 (if all bad)
 int
-salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen, uint8_t nonce[8])
+salsa_set_key_and_nonce(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t nonce[8])
 {
-	int i;
+	int i, j;
+	uint8_t *expand;
 
-	if(keylen <= SALSA16)
+	uint8_t key_expand_16 [] = {
+		'e', 'x', 'p', 'a',
+		'n', 'd', ' ', '1',
+		'6', '-', 'b', 'y',
+		't', 'e', ' ', 'k'
+	};
+
+	uint8_t key_expand_32 [] = {
+		'e', 'x', 'p', 'a',
+		'n', 'd', ' ', '3',
+		'2', '-', 'b', 'y',
+		't', 'e', ' ', 'k'
+	};
+
+	if(keylen <= SALSA16) {
 		ctx->keylen = SALSA16;
-	else if(keylen <= SALSA32)
+		expand = (uint8_t *)key_expand_16;
+		j = 0;
+	}
+	else if(keylen <= SALSA32) {
 		ctx->keylen = SALSA32;
+		expand = (uint8_t *)key_expand_32;
+		j = 4;
+	}
 	else
 	     	return -1;
 
@@ -83,118 +105,79 @@ salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen, uin
 	
 	// Fill the nonce: nonce[8] - nonce[15].
 	for(i = 8; i < 16; i++)
-		ctx->nonce[i] = i;
+		ctx->nonce[i] = 0;
+		
+	for(i = 0; i < 4; i++) {
+		ctx->x[i *  5] = LITTLEENDIAN((expand + (i * 4)));
+		ctx->x[i +  1] = LITTLEENDIAN((ctx->key + (i * 4)));
+		ctx->x[i +  6] = LITTLEENDIAN((ctx->nonce + (i * 4)));
+		ctx->x[i + 11] = LITTLEENDIAN((ctx->key + ((j + i) * 4)));
+	}
 
 	return 0;
 }
 
 // Salsa hash function
 static void
-salsa20(struct salsa_context *ctx, uint32_t x[16])
+salsa20(struct salsa_context *ctx, uint8_t seq[64])
 {
 	uint32_t z[16];
 	int i, j;
 
 	for(i = 0; i < 16; i++)
-		z[i] = x[i];
+		z[i] = ctx->x[i];
 
 	for(i = 0; i < 10; i++) {
-		x[ 4] ^= ROTL32((x[ 0] + x[12]), 7);
-		x[ 8] ^= ROTL32((x[ 4] + x[ 0]), 9);
-		x[12] ^= ROTL32((x[ 8] + x[ 4]), 13);
-		x[ 0] ^= ROTL32((x[12] + x[ 8]), 18);
+		z[ 4] ^= ROTL32((z[ 0] + z[12]), 7);
+		z[ 8] ^= ROTL32((z[ 4] + z[ 0]), 9);
+		z[12] ^= ROTL32((z[ 8] + z[ 4]), 13);
+		z[ 0] ^= ROTL32((z[12] + z[ 8]), 18);
 
-		x[ 9] ^= ROTL32((x[ 5] + x[ 1]), 7);
-		x[13] ^= ROTL32((x[ 9] + x[ 5]), 9);
-		x[ 1] ^= ROTL32((x[13] + x[ 9]), 13);
-		x[ 5] ^= ROTL32((x[ 1] + x[13]), 18);
+		z[ 9] ^= ROTL32((z[ 5] + z[ 1]), 7);
+		z[13] ^= ROTL32((z[ 9] + z[ 5]), 9);
+		z[ 1] ^= ROTL32((z[13] + z[ 9]), 13);
+		z[ 5] ^= ROTL32((z[ 1] + z[13]), 18);
 
-		x[14] ^= ROTL32((x[10] + x[ 6]), 7);
-		x[ 2] ^= ROTL32((x[14] + x[10]), 9);
-		x[ 6] ^= ROTL32((x[ 2] + x[14]), 13);
-		x[10] ^= ROTL32((x[ 6] + x[ 2]), 18);
+		z[14] ^= ROTL32((z[10] + z[ 6]), 7);
+		z[ 2] ^= ROTL32((z[14] + z[10]), 9);
+		z[ 6] ^= ROTL32((z[ 2] + z[14]), 13);
+		z[10] ^= ROTL32((z[ 6] + z[ 2]), 18);
 
-		x[ 3] ^= ROTL32((x[15] + x[11]), 7);
-		x[ 7] ^= ROTL32((x[ 3] + x[15]), 9);
-		x[11] ^= ROTL32((x[ 7] + x[ 3]), 13);
-		x[15] ^= ROTL32((x[11] + x[ 7]), 18);
+		z[ 3] ^= ROTL32((z[15] + z[11]), 7);
+		z[ 7] ^= ROTL32((z[ 3] + z[15]), 9);
+		z[11] ^= ROTL32((z[ 7] + z[ 3]), 13);
+		z[15] ^= ROTL32((z[11] + z[ 7]), 18);
 	
-		x[ 1] ^= ROTL32((x[ 0] + x[ 3]), 7);
-		x[ 2] ^= ROTL32((x[ 1] + x[ 0]), 9);
-		x[ 3] ^= ROTL32((x[ 2] + x[ 1]), 13);
-		x[ 0] ^= ROTL32((x[ 3] + x[ 2]), 18);
+		z[ 1] ^= ROTL32((z[ 0] + z[ 3]), 7);
+		z[ 2] ^= ROTL32((z[ 1] + z[ 0]), 9);
+		z[ 3] ^= ROTL32((z[ 2] + z[ 1]), 13);
+		z[ 0] ^= ROTL32((z[ 3] + z[ 2]), 18);
 
-		x[ 6] ^= ROTL32((x[ 5] + x[ 4]), 7);
-		x[ 7] ^= ROTL32((x[ 6] + x[ 5]), 9);
-		x[ 4] ^= ROTL32((x[ 7] + x[ 6]), 13);
-		x[ 5] ^= ROTL32((x[ 4] + x[ 7]), 18);
+		z[ 6] ^= ROTL32((z[ 5] + z[ 4]), 7);
+		z[ 7] ^= ROTL32((z[ 6] + z[ 5]), 9);
+		z[ 4] ^= ROTL32((z[ 7] + z[ 6]), 13);
+		z[ 5] ^= ROTL32((z[ 4] + z[ 7]), 18);
 	
-		x[11] ^= ROTL32((x[10] + x[ 9]), 7);
-		x[ 8] ^= ROTL32((x[11] + x[10]), 9);
-		x[ 9] ^= ROTL32((x[ 8] + x[11]), 13);
-		x[10] ^= ROTL32((x[ 9] + x[ 8]), 18);
+		z[11] ^= ROTL32((z[10] + z[ 9]), 7);
+		z[ 8] ^= ROTL32((z[11] + z[10]), 9);
+		z[ 9] ^= ROTL32((z[ 8] + z[11]), 13);
+		z[10] ^= ROTL32((z[ 9] + z[ 8]), 18);
 
-		x[12] ^= ROTL32((x[15] + x[14]), 7);
-		x[13] ^= ROTL32((x[12] + x[15]), 9);
-		x[14] ^= ROTL32((x[13] + x[12]), 13);
-		x[15] ^= ROTL32((x[14] + x[13]), 18);
+		z[12] ^= ROTL32((z[15] + z[14]), 7);
+		z[13] ^= ROTL32((z[12] + z[15]), 9);
+		z[14] ^= ROTL32((z[13] + z[12]), 13);
+		z[15] ^= ROTL32((z[14] + z[13]), 18);
 	}
 	
 	j = 0;
 
 	for(i = 0; i < 16; i++) {
-		z[i] += x[i];
-		ctx->seq[j++] = (uint8_t)(z[i]);
-		ctx->seq[j++] = (uint8_t)(z[i] >> 8);
-		ctx->seq[j++] = (uint8_t)(z[i] >> 16);
-		ctx->seq[j++] = (uint8_t)(z[i] >> 24);
+		z[i] += ctx->x[i];
+		seq[j++] = (uint8_t)(z[i]);
+		seq[j++] = (uint8_t)(z[i] >> 8);
+		seq[j++] = (uint8_t)(z[i] >> 16);
+		seq[j++] = (uint8_t)(z[i] >> 24);
 	}
-}
-
-// Salsa expansion of key. Expansion of key depends from key length
-static void
-salsa_expand_key(struct salsa_context *ctx)
-{
-	int i, j;
-	uint32_t x[16];
-	uint8_t *expand;
-		
-	// Unique constant for key length 16 byte
-	uint8_t key_expand_16 [] = {
-		'e', 'x', 'p', 'a',
-		'n', 'd', ' ', '1',
-		'6', '-', 'b', 'y',
-		't', 'e', ' ', 'k'
-	};
-
-	// Unique constant for key length 32 byte
-	uint8_t key_expand_32 [] = {
-		'e', 'x', 'p', 'a',
-		'n', 'd', ' ', '3',
-		'2', '-', 'b', 'y',
-		't', 'e', ' ', 'k'
-	};
-	
-	switch(ctx->keylen) {
-	case SALSA16 :
-		expand = (uint8_t *)key_expand_16;
-		j = 0;
-		break;
-	case SALSA32 :
-		expand = (uint8_t *)key_expand_32;
-		j = 4;
-		break;
-	}
-
-	for(i = 0; i < 4; i++) {
-		x[i * 5] = LITTLEENDIAN((expand + (i * 4)));
-		x[i + 1] = LITTLEENDIAN((ctx->key + (i * 4)));
-		x[i + 6] = LITTLEENDIAN((ctx->nonce + (i * 4)));
-		x[i + 11] = LITTLEENDIAN((ctx->key + ((j + i) * 4)));
-	}
-
-	// Salsa hash function
-	salsa20(ctx, x);
 }
 
 /* Salsa encrypt algorithm.
@@ -203,106 +186,37 @@ salsa_expand_key(struct salsa_context *ctx)
  * buflen - length the data buffer
 */
 void
-salsa_encrypt(struct salsa_context *ctx, uint8_t *buf, int buflen)
+salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
 {
 	int i;
+	uint8_t seq[64];
 
-	salsa_expand_key(ctx);	
+	for(;;) {
+		salsa20(ctx, seq);
+		ctx->x[8] += 1;
+
+		if(!ctx->x[8])
+			ctx->x[9] += 1;
+
+		if(buflen <= 64) {
+			for(i = 0; i < buflen; i++)
+				out[i] = buf[i] ^ seq[i];
+			return;
+		}
 		
-	for(i = 0; i < buflen; i++)
-		buf[i] ^= ctx->seq[i % 64];
+		for(i = 0; i < 64; i++)
+			out[i] = buf[i] ^ seq[i];
+		
+		buflen -= 64;
+		buf += 64;
+		out += 64;
+	}
 }
 
 // Salsa decrypt function. See salsa_encrypt
 void
-salsa_decrypt(struct salsa_context *ctx, uint8_t *buf, int buflen)
+salsa_decrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
 {
-	salsa_encrypt(ctx, buf, buflen);
-}
-
-// Salsa20 test vectors
-void
-salsa_test_vectors(struct salsa_context *ctx, uint32_t x[16])
-{
-	uint8_t key[32],nonce[8];
-	int i, j;
-
-	// Test salsa20 hash function
-	printf("\nTest salsa20 hash function!\nArray sequence input:\n");
-	
-	for(i = 0; i < 16; i+=2) {
-		for(j = i; j <= (i+1); j++)
-			printf("  %3d  %3d  %3d  %3d", (uint8_t)x[j], (uint8_t)(x[j] >> 8), (uint8_t)(x[j] >> 16), (uint8_t)(x[j] >> 24));
-		printf("\n");
-	}
-
-	salsa20(ctx, x);
-
-	printf("\nArray sequence output:\n");
-
-	for(i = 0; i < 64; i+=8) {
-		for(j = i; j <=(i+7) ; j++)
-			printf("  %3d", ctx->seq[j]);
-		printf("\n");
-	}
-	
-	/* Tests expansion function
-	 * secret key: k0 = (1, 2, 3,..., 16) and k1 = (201, 202, 203,..., 216 )
-	 * array nonce: n = (101, 102, 103,..., 116)
-	*/
-	
-	// Get the key according to a manual
-	for(i = 0; i < 16; i++) {
-		key[i] = i + 1;
-		key[16 + i] = 201 + i;
-	}      
-	
-	// Get the array according to a manual nonce[0] - nonce[7]
-	for(i = 0; i < 8; i++)
-		nonce[i] = 101 + i;
-
-	if(salsa_set_key_and_nonce(ctx, (uint8_t *)key, 16, nonce)) {
-		printf("Salsa context filling error (key 16-byte)!\n");
-		exit(1);
-	}
-	
-	// Get the according to a manual nonce[8] - nonce[15]
-	for(i = 8; i < 16; i++)
-		ctx->nonce[i] = 101 + i;
-
-	salsa_expand_key(ctx);
-
-	printf("\n\nTests salsa20 expansion function!\n");
-	printf("Secret key: k0 = (1, 2, 3,..., 16) k1 = (201, 202, 203,..., 216)\n");
-	printf("Array nonce: n = (101, 102, 103,..., 116)\n");
-
-	printf("\nArray sequence output (16-byte key):\n");
-	
-	for(i = 0; i < 64; i+=8) {
-		for(j = i; j <=(i+7) ; j++)
-			printf("  %3d", ctx->seq[j]);
-		printf("\n");
-	}
-	
-	if(salsa_set_key_and_nonce(ctx, (uint8_t *)key, 32, nonce)) {
-		printf("Salsa context filling error (key 16-byte)!\n");
-		exit(1);
-	}
-	 
-	// Get the according to a manual nonce[8] - nonce[15]
-	for(i = 8; i < 16; i++)
-		ctx->nonce[i] = 101 + i;
-
-	salsa_expand_key(ctx);
-	
-	printf("\nArray sequence output (32-byte key:)\n");
-	
-	for(i = 0; i < 64; i+=8) {
-		for(j = i; j < (i+8); j++)
-			printf("  %3d", ctx->seq[j]);
-		printf("\n");
-	}
-
-	printf("\n");
+	salsa_encrypt(ctx, buf, buflen, out);
 }
 

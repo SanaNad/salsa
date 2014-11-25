@@ -8,14 +8,14 @@
 
 struct salsa_context;
 
-struct salsa_context *salsa_context_new();
+struct salsa_context *salsa_context_new(void);
 
 void salsa_context_free(struct salsa_context **ctx);
 
-int salsa_set_key_and_nonce(struct salsa_context *ctx, uint8_t *key, int keylen, uint8_t nonce[16]);
+int salsa_set_key_and_nonce(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t nonce[16]);
 
-void salsa_encrypt(struct salsa_context *ctx, uint8_t *buf, int buflen);
-void salsa_decrypt(struct salsa_context *ctx, uint8_t *buf, int buflen);
+void salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out);
+void salsa_decrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out);
 
 // Test vectors to verify the algorithm Salsa20
 void salsa_test_vectors(struct salsa_context *ctx, uint32_t x[16]);
