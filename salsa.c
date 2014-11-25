@@ -29,7 +29,6 @@
 /* Salsa context
  * keylen - chiper key length
  * key - chiper key
- * seq - array of intermediate values
  * nonce - 16-byte array with a unique number. 8 bytes are filled by the user
  * x - intermediate array
 */
