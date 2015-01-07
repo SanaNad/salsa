@@ -48,7 +48,6 @@ int
 main()
 {
 	struct salsa_context *ctx;
-	uint32_t i;
 
 	memset(buf, 'q', sizeof(buf));
 	memset(key, 'k', sizeof(key));

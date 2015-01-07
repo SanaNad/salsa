@@ -1,8 +1,8 @@
 /* This program implements the SALSA20 algorithm.
- * Salsa20 developed Daniel J. Bernstein. Winner the eSTREAM.
+ * Salsa20 author Daniel J. Bernstein. Winner the eSTREAM.
  * The SALSA20 home page - http://www.ecrypt.eu.org/stream/.
  * ----------------------
- * Author: Rostislav Gashin (rost1993). The State University of Syktyvkar (Amplab).
+ * Developed: Rostislav Gashin (rost1993). The State University of Syktyvkar (Amplab).
  * Assistant project manager: Lipin Boris (dzruyk).
  * Project manager: Grisha Sitkarev.
  * ----------------------
@@ -49,7 +49,7 @@ salsa_context_new(void)
 	if(ctx == NULL)
 		return NULL;
 
-	memset(ctx, 0, sizeof(ctx));
+	memset(ctx, 0, sizeof(*ctx));
 	
 	return ctx;
 }
