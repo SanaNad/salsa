@@ -1,7 +1,7 @@
 /* Big test salsa.h
  * Example: 
- * encrypt - ./bigtest -t 1 -b 1000000 -i file1 -o file2
- * decrypt - ./bigtest -t 2 -b 1000000 -i file2 -o file3
+ * encrypt - ./bigtest_2 -t 1 -b 1000000 -i file1 -o file2
+ * decrypt - ./bigtest_2 -t 2 -b 1000000 -i file2 -o file3
 */
 
 #include <stdio.h>
@@ -10,7 +10,7 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "salsa.h"
+#include "ecrypt-sync.h"
 
 #define MAX_FILE	4096
 
@@ -58,14 +58,14 @@ help(void)
 	printf("\t--block(-b) - block size data read from the file. By default = 10000\n");
 	printf("\t--input(-i) - input file\n");
 	printf("\t--output(-o) - output file\n");
-	printf("Example: ./bigtest -t 1 -b 1000 -i 1.txt -o crypt or ./bigtest -t 2 -b 1000 -i crypt -o decrypt\n\n");
+	printf("Example: ./bigtest_2 -t 1 -b 1000 -i 1.txt -o crypt or ./bigtest_2 -t 2 -b 1000 -i crypt -o decrypt\n\n");
 }
 
 int
 main(int argc, char *argv[])
 {
 	FILE *fp, *fd;
-	struct salsa_context *ctx;
+	ECRYPT_ctx ctx;
 	uint32_t byte, block = 10000;
 	uint8_t *buf, *out, key[32], nonce[8];
 	char file1[MAX_FILE], file2[MAX_FILE];
@@ -109,26 +109,17 @@ main(int argc, char *argv[])
 	memset(key, 'k', sizeof(key));
 	memset(nonce, 'i', sizeof(nonce));
 
-	if((ctx = salsa_context_new()) == NULL) {
-		printf("Memory allocation error!\n");
-		exit(1);
-	}
+	ECRYPT_keysetup(&ctx, key, 256, 64);
+	ECRYPT_ivsetup(&ctx, nonce);
 
-	if(salsa_set_key_and_nonce(ctx, (uint8_t *)key, 32, nonce)) {
-		printf("Salsa context filling error!\n");
-		exit(1);
-	}
-	
 	while((byte = fread(buf, 1, block, fp)) > 0) {
 		if(action == 1)
-			salsa_encrypt(ctx, buf, byte, out);
+			ECRYPT_encrypt_bytes(&ctx, buf, out, byte);
 		else
-			salsa_decrypt(ctx, buf, byte, out);
+			ECRYPT_decrypt_bytes(&ctx, buf, out, byte);
 		
 		fwrite(out, 1, byte, fd);
 	}
-	
-	salsa_context_free(&ctx);
 	
 	free(buf);
 	free(out);
