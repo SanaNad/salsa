@@ -12,7 +12,7 @@ struct salsa_context *salsa_context_new(void);
 
 void salsa_context_free(struct salsa_context **ctx);
 
-int salsa_set_key_and_nonce(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t nonce[16]);
+int salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t iv[8]);
 
 void salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out);
 void salsa_decrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out);
