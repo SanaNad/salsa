@@ -5,8 +5,8 @@ SOURCES=./salsa_sources
 MAIN_OBJS=salsa.o main.o
 BIGTEST_OBJS=salsa.o bigtest.o
 
-MAIN_DEVELOPER_OBJS=$(SOURCES)/ecrypt.o $(SOURCES)/main.o
-BIGTEST_DEVELOPER_OBJS=$(SOURCES)/ecrypt.o $(SOURCES)/bigtest_2.o
+MAIN_DEVELOPER_OBJS=$(patsubst %, $(SOURCES)/%, ecrypt.o main.o)
+BIGTEST_DEVELOPER_OBJS=$(patsubst %, $(SOURCES)/%, ecrypt.o bigtest_2.o)
 
 MAIN=main
 BIGTEST=bigtest

@@ -29,13 +29,13 @@
 /* Salsa context
  * keylen - chiper key length
  * key - chiper key
- * nonce - 16-byte array with a unique number. 8 bytes are filled by the user
+ * iv - 16-byte array with a unique number. 8 bytes are filled by the user
  * x - intermediate array
 */
 struct salsa_context {
 	int keylen;
 	uint8_t key[SALSA32];
-	uint8_t nonce[16];
+	uint8_t iv[16];
 	uint32_t x[16];
 };
 
@@ -62,10 +62,10 @@ salsa_context_free(struct salsa_context **ctx)
 	*ctx = NULL;
 }
 
-// Fill the salsa context (key and nonce)
+// Fill the salsa context (key and iv)
 // Return value: 0 (if all is well), -1 (if all bad)
 int
-salsa_set_key_and_nonce(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t nonce[8])
+salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t iv[8])
 {
 	int i, j;
 	uint8_t *expand;
@@ -84,32 +84,32 @@ salsa_set_key_and_nonce(struct salsa_context *ctx, const uint8_t *key, const int
 		't', 'e', ' ', 'k'
 	};
 
-	if(keylen <= SALSA16) {
-		ctx->keylen = SALSA16;
-		expand = (uint8_t *)key_expand_16;
-		j = 0;
-	}
-	else if(keylen <= SALSA32) {
+	if(keylen == SALSA32) {
 		ctx->keylen = SALSA32;
 		expand = (uint8_t *)key_expand_32;
 		j = 4;
+	}
+	else if((keylen < SALSA32) && (keylen > 0)){
+		ctx->keylen = SALSA16;
+		expand = (uint8_t *)key_expand_16;
+		j = 0;
 	}
 	else
 	     	return -1;
 
 	memcpy(ctx->key, key, keylen);
 
-	// Fill the nonce user data: nonce[0] - nonce[7].
-	memcpy(ctx->nonce, nonce, 8);
+	// Fill the iv user data: iv[0] - iv[7].
+	memcpy(ctx->iv, iv, 8);
 	
-	// Fill the nonce: nonce[8] - nonce[15].
+	// Fill the iv: iv[8] - iv[15].
 	for(i = 8; i < 16; i++)
-		ctx->nonce[i] = 0;
-		
+		ctx->iv[i] = 0;
+	
 	for(i = 0; i < 4; i++) {
 		ctx->x[i *  5] = LITTLEENDIAN((expand + (i * 4)));
 		ctx->x[i +  1] = LITTLEENDIAN((ctx->key + (i * 4)));
-		ctx->x[i +  6] = LITTLEENDIAN((ctx->nonce + (i * 4)));
+		ctx->x[i +  6] = LITTLEENDIAN((ctx->iv + (i * 4)));
 		ctx->x[i + 11] = LITTLEENDIAN((ctx->key + ((j + i) * 4)));
 	}
 
