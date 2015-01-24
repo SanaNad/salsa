@@ -67,7 +67,7 @@ main(int argc, char *argv[])
 	FILE *fp, *fd;
 	struct salsa_context *ctx;
 	uint32_t byte, block = 10000;
-	uint8_t *buf, *out, key[32], nonce[8];
+	uint8_t *buf, *out, key[32], iv[8];
 	char file1[MAX_FILE], file2[MAX_FILE];
 	int res, action = 1;
 
@@ -107,14 +107,14 @@ main(int argc, char *argv[])
 	fd = open_file(file2, 2);
 	
 	memset(key, 'k', sizeof(key));
-	memset(nonce, 'i', sizeof(nonce));
+	memset(iv, 'i', sizeof(iv));
 
 	if((ctx = salsa_context_new()) == NULL) {
 		printf("Memory allocation error!\n");
 		exit(1);
 	}
 
-	if(salsa_set_key_and_nonce(ctx, (uint8_t *)key, 32, nonce)) {
+	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, 32, iv)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}

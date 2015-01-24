@@ -18,7 +18,7 @@ uint8_t buf[BUFLEN];
 uint8_t out1[BUFLEN];
 uint8_t out2[BUFLEN];
 uint8_t key[KEYLEN];
-uint8_t nonce[8];
+uint8_t iv[8];
 
 // Function time measurement
 static void
@@ -51,7 +51,7 @@ main()
 
 	memset(buf, 'q', sizeof(buf));
 	memset(key, 'k', sizeof(key));
-	memset(nonce, 1, sizeof(nonce));
+	memset(iv, 1, sizeof(iv));
 	
 	time_start();
 	
@@ -60,14 +60,14 @@ main()
 		exit(1);
 	}
 	
-	if (salsa_set_key_and_nonce(ctx, (uint8_t *)key, KEYLEN, nonce)) {
+	if (salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 	
 	salsa_encrypt(ctx, buf, BUFLEN, out1);
 	
-	if(salsa_set_key_and_nonce(ctx, (uint8_t *)key, KEYLEN, nonce)) {
+	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
