@@ -1,4 +1,5 @@
-/* This program implements the SALSA20 algorithm.
+/* 
+ * This program implements the SALSA20 algorithm.
  * Salsa20 author Daniel J. Bernstein. Winner the eSTREAM.
  * The SALSA20 home page - http://www.ecrypt.eu.org/stream/.
  * ----------------------
@@ -9,7 +10,7 @@
  * Salsa20 operations based on a 32-bit summation bitwise (XOR) and shift operations.
  * The algorithm uses a hash function with 20 cycles.
  * ----------------------
- * Russia, Komi Republic, Syktyvkar - 29.09.2014, version 2.
+ * Russia, Komi Republic, Syktyvkar - 15.02.2015, version 3.
 */
 
 #include <stdio.h>
@@ -23,10 +24,15 @@
 #define	SALSA32		32
 
 #define	ROTL32(v, n)	((v << n) | (v >> (32 - n)))
-#define LITTLEENDIAN(b)	(b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24))
+
+// Little-endian 4 uint8_t in the uint32_t
+#define U8TO32_LITTLE(p)						\
+	(((uint32_t)((p)[0])     ) | ((uint32_t)((p)[1]) << 8) | 	\
+	((uint32_t)((p)[2]) << 16) | ((uint32_t)((p)[3]) << 24))
 
 
-/* Salsa context
+/* 
+ * Salsa context
  * keylen - chiper key length
  * key - chiper key
  * iv - 16-byte array with a unique number. 8 bytes are filled by the user
@@ -107,10 +113,10 @@ salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int ke
 		ctx->iv[i] = 0;
 	
 	for(i = 0; i < 4; i++) {
-		ctx->x[i *  5] = LITTLEENDIAN((expand + (i * 4)));
-		ctx->x[i +  1] = LITTLEENDIAN((ctx->key + (i * 4)));
-		ctx->x[i +  6] = LITTLEENDIAN((ctx->iv + (i * 4)));
-		ctx->x[i + 11] = LITTLEENDIAN((ctx->key + ((j + i) * 4)));
+		ctx->x[i *  5] = U8TO32_LITTLE((expand + (i * 4)));
+		ctx->x[i +  1] = U8TO32_LITTLE((ctx->key + (i * 4)));
+		ctx->x[i +  6] = U8TO32_LITTLE((ctx->iv + (i * 4)));
+		ctx->x[i + 11] = U8TO32_LITTLE((ctx->key + ((j + i) * 4)));
 	}
 
 	return 0;
@@ -118,10 +124,10 @@ salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int ke
 
 // Salsa hash function
 static void
-salsa20(struct salsa_context *ctx, uint8_t seq[64])
+salsa20(struct salsa_context *ctx, uint32_t *keystream)
 {
 	uint32_t z[16];
-	int i, j;
+	int i;
 
 	for(i = 0; i < 16; i++)
 		z[i] = ctx->x[i];
@@ -168,18 +174,14 @@ salsa20(struct salsa_context *ctx, uint8_t seq[64])
 		z[15] ^= ROTL32((z[14] + z[13]), 18);
 	}
 	
-	j = 0;
-
 	for(i = 0; i < 16; i++) {
 		z[i] += ctx->x[i];
-		seq[j++] = (uint8_t)(z[i]);
-		seq[j++] = (uint8_t)(z[i] >> 8);
-		seq[j++] = (uint8_t)(z[i] >> 16);
-		seq[j++] = (uint8_t)(z[i] >> 24);
+		keystream[i] = z[i];
 	}
 }
 
-/* Salsa encrypt algorithm.
+/* 
+ * Salsa encrypt algorithm.
  * ctx - pointer on salsa context
  * buf - pointer on buffer data
  * buflen - length the data buffer
@@ -187,29 +189,47 @@ salsa20(struct salsa_context *ctx, uint8_t seq[64])
 void
 salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
 {
+	uint32_t keystream[16];
 	int i;
-	uint8_t seq[64];
 
-	for(;;) {
-		salsa20(ctx, seq);
+	for(; buflen >= 64; buflen -= 64, buf += 64, out += 64) {
+		salsa20(ctx, keystream);
+		
 		ctx->x[8] += 1;
 
 		if(!ctx->x[8])
 			ctx->x[9] += 1;
 
-		if(buflen <= 64) {
-			for(i = 0; i < buflen; i++)
-				out[i] = buf[i] ^ seq[i];
-			return;
-		}
-		
-		for(i = 0; i < 64; i++)
-			out[i] = buf[i] ^ seq[i];
-		
-		buflen -= 64;
-		buf += 64;
-		out += 64;
+		*(uint32_t *)(out +  0) = *(uint32_t *)(buf +  0) ^ keystream[ 0];
+		*(uint32_t *)(out +  4) = *(uint32_t *)(buf +  4) ^ keystream[ 1];
+		*(uint32_t *)(out +  8) = *(uint32_t *)(buf +  8) ^ keystream[ 2];
+		*(uint32_t *)(out + 12) = *(uint32_t *)(buf + 12) ^ keystream[ 3];
+		*(uint32_t *)(out + 16) = *(uint32_t *)(buf + 16) ^ keystream[ 4];
+		*(uint32_t *)(out + 20) = *(uint32_t *)(buf + 20) ^ keystream[ 5];
+		*(uint32_t *)(out + 24) = *(uint32_t *)(buf + 24) ^ keystream[ 6];
+		*(uint32_t *)(out + 28) = *(uint32_t *)(buf + 28) ^ keystream[ 7];
+		*(uint32_t *)(out + 32) = *(uint32_t *)(buf + 32) ^ keystream[ 8];
+		*(uint32_t *)(out + 36) = *(uint32_t *)(buf + 36) ^ keystream[ 9];
+		*(uint32_t *)(out + 40) = *(uint32_t *)(buf + 40) ^ keystream[10];
+		*(uint32_t *)(out + 44) = *(uint32_t *)(buf + 44) ^ keystream[11];
+		*(uint32_t *)(out + 48) = *(uint32_t *)(buf + 48) ^ keystream[12];
+		*(uint32_t *)(out + 52) = *(uint32_t *)(buf + 52) ^ keystream[13];
+		*(uint32_t *)(out + 56) = *(uint32_t *)(buf + 56) ^ keystream[14];
+		*(uint32_t *)(out + 60) = *(uint32_t *)(buf + 60) ^ keystream[15];
 	}
+
+	if(buflen > 0) {
+		salsa20(ctx, keystream);
+
+		ctx->x[8] += 1;
+
+		if(!ctx->x[8])
+			ctx->x[9] += 1;
+
+		for(i = 0; i < buflen; i++)
+			out[i] = buf[i] ^ ((uint8_t *)keystream)[i];
+	}
+
 }
 
 // Salsa decrypt function. See salsa_encrypt
