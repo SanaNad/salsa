@@ -17,4 +17,6 @@ int salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const in
 void salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out);
 void salsa_decrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out);
 
+void salsa_test_vectors(struct salsa_context *ctx);
+
 #endif
