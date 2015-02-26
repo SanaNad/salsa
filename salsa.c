@@ -183,10 +183,8 @@ salsa20(struct salsa_context *ctx, uint32_t *keystream)
 		z[15] ^= ROTL32((z[14] + z[13]), 18);
 	}
 	
-	for(i = 0; i < 16; i++) {
-		z[i] += ctx->x[i];
-		keystream[i] = z[i];
-	}
+	for(i = 0; i < 16; i++)
+		keystream[i] = U32TO32(z[i] + ctx->x[i]);
 }
 
 /* 
@@ -200,7 +198,7 @@ salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, ui
 {
 	uint32_t keystream[16];
 	int i;
-
+	
 	for(; buflen >= 64; buflen -= 64, buf += 64, out += 64) {
 		salsa20(ctx, keystream);
 		
@@ -209,22 +207,22 @@ salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, ui
 		if(!ctx->x[8])
 			ctx->x[9] += 1;
 
-		*(uint32_t *)(out +  0) = *(uint32_t *)(buf +  0) ^ U32TO32(keystream[ 0]);
-		*(uint32_t *)(out +  4) = *(uint32_t *)(buf +  4) ^ U32TO32(keystream[ 1]);
-		*(uint32_t *)(out +  8) = *(uint32_t *)(buf +  8) ^ U32TO32(keystream[ 2]);
-		*(uint32_t *)(out + 12) = *(uint32_t *)(buf + 12) ^ U32TO32(keystream[ 3]);
-		*(uint32_t *)(out + 16) = *(uint32_t *)(buf + 16) ^ U32TO32(keystream[ 4]);
-		*(uint32_t *)(out + 20) = *(uint32_t *)(buf + 20) ^ U32TO32(keystream[ 5]);
-		*(uint32_t *)(out + 24) = *(uint32_t *)(buf + 24) ^ U32TO32(keystream[ 6]);
-		*(uint32_t *)(out + 28) = *(uint32_t *)(buf + 28) ^ U32TO32(keystream[ 7]);
-		*(uint32_t *)(out + 32) = *(uint32_t *)(buf + 32) ^ U32TO32(keystream[ 8]);
-		*(uint32_t *)(out + 36) = *(uint32_t *)(buf + 36) ^ U32TO32(keystream[ 9]);
-		*(uint32_t *)(out + 40) = *(uint32_t *)(buf + 40) ^ U32TO32(keystream[10]);
-		*(uint32_t *)(out + 44) = *(uint32_t *)(buf + 44) ^ U32TO32(keystream[11]);
-		*(uint32_t *)(out + 48) = *(uint32_t *)(buf + 48) ^ U32TO32(keystream[12]);
-		*(uint32_t *)(out + 52) = *(uint32_t *)(buf + 52) ^ U32TO32(keystream[13]);
-		*(uint32_t *)(out + 56) = *(uint32_t *)(buf + 56) ^ U32TO32(keystream[14]);
-		*(uint32_t *)(out + 60) = *(uint32_t *)(buf + 60) ^ U32TO32(keystream[15]);
+		*(uint32_t *)(out +  0) = *(uint32_t *)(buf +  0) ^ keystream[ 0];
+		*(uint32_t *)(out +  4) = *(uint32_t *)(buf +  4) ^ keystream[ 1];
+		*(uint32_t *)(out +  8) = *(uint32_t *)(buf +  8) ^ keystream[ 2];
+		*(uint32_t *)(out + 12) = *(uint32_t *)(buf + 12) ^ keystream[ 3];
+		*(uint32_t *)(out + 16) = *(uint32_t *)(buf + 16) ^ keystream[ 4];
+		*(uint32_t *)(out + 20) = *(uint32_t *)(buf + 20) ^ keystream[ 5];
+		*(uint32_t *)(out + 24) = *(uint32_t *)(buf + 24) ^ keystream[ 6];
+		*(uint32_t *)(out + 28) = *(uint32_t *)(buf + 28) ^ keystream[ 7];
+		*(uint32_t *)(out + 32) = *(uint32_t *)(buf + 32) ^ keystream[ 8];
+		*(uint32_t *)(out + 36) = *(uint32_t *)(buf + 36) ^ keystream[ 9];
+		*(uint32_t *)(out + 40) = *(uint32_t *)(buf + 40) ^ keystream[10];
+		*(uint32_t *)(out + 44) = *(uint32_t *)(buf + 44) ^ keystream[11];
+		*(uint32_t *)(out + 48) = *(uint32_t *)(buf + 48) ^ keystream[12];
+		*(uint32_t *)(out + 52) = *(uint32_t *)(buf + 52) ^ keystream[13];
+		*(uint32_t *)(out + 56) = *(uint32_t *)(buf + 56) ^ keystream[14];
+		*(uint32_t *)(out + 60) = *(uint32_t *)(buf + 60) ^ keystream[15];
 	}
 
 	if(buflen > 0) {
@@ -246,5 +244,41 @@ void
 salsa_decrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
 {
 	salsa_encrypt(ctx, buf, buflen, out);
+}
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define PRINT_U32TO32(x) \
+	(printf("%02x %02x %02x %02x ", (x >> 24), ((x >> 16) & 0xFF), ((x >> 8) & 0xFF), (x & 0xFF)))
+#else
+#define PRINT_U32TO32(x) \
+	(printf("%02x %02x %02x %02x ", (x & 0xFF), ((x >> 8) & 0xFF), ((x >> 16) & 0xFF), (x >> 24)))
+#endif
+
+void
+salsa_test_vectors(struct salsa_context *ctx)
+{
+	uint32_t keystream[16];
+	int i;
+
+	salsa20(ctx, keystream);
+
+	printf("\nTest vectors for the Salsa20 64 bytes:\n");
+
+	printf("\nKey:       ");
+
+	for(i = 0; i < 32; i++)
+		printf("%02x ", ctx->key[i]);
+	
+	printf("\nIV:        ");
+	
+	for(i = 0; i < 16; i++)
+		printf("%02x ", ctx->iv[i]);
+	
+	printf("\nKeystream: ");
+
+	for(i = 0; i < 16; i++)
+		PRINT_U32TO32(keystream[i]);
+	
+	printf("\n\n");
 }
 
