@@ -8,7 +8,7 @@
 
 #include "salsa.h"
 
-#define	BUFLEN	5000000
+#define	BUFLEN	10000000
 #define KEYLEN	32
 
 // Struct for time value
@@ -60,14 +60,14 @@ main()
 		exit(1);
 	}
 	
-	if (salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv)) {
+	if (salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 	
 	salsa_encrypt(ctx, buf, BUFLEN, out1);
 	
-	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv)) {
+	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}

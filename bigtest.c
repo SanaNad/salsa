@@ -67,7 +67,7 @@ main(int argc, char *argv[])
 	FILE *fp, *fd;
 	struct salsa_context *ctx;
 	uint32_t byte, block = 10000;
-	uint8_t *buf, *out, key[32], iv[8];
+	uint8_t *buf, *out, key[32], iv[2];
 	char file1[MAX_FILE], file2[MAX_FILE];
 	int res, action = 1;
 
@@ -114,7 +114,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, 32, iv)) {
+	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, 32, iv, 2)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}

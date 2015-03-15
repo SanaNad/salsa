@@ -42,13 +42,15 @@
 
 /* 
  * Salsa context
- * keylen - chiper key length
+ * keylen - chiper key length in bytes
+ * ivlen - vector initialization length in bytes
  * key - chiper key
  * iv - 16-byte array with a unique number. 8 bytes are filled by the user
  * x - intermediate array
 */
 struct salsa_context {
 	int keylen;
+	int ivlen;
 	uint8_t key[SALSA32];
 	uint8_t iv[16];
 	uint32_t x[16];
@@ -59,7 +61,7 @@ struct salsa_context *
 salsa_context_new(void)
 {
 	struct salsa_context *ctx;
-	ctx = malloc(sizeof(*ctx));
+	ctx = (struct salsa_context *)malloc(sizeof(*ctx));
 
 	if(ctx == NULL)
 		return NULL;
@@ -80,7 +82,7 @@ salsa_context_free(struct salsa_context **ctx)
 // Fill the salsa context (key and iv)
 // Return value: 0 (if all is well), -1 (if all bad)
 int
-salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t iv[8])
+salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int keylen, const uint8_t iv[8], const int ivlen)
 {
 	int i, j;
 	uint8_t *expand;
@@ -105,17 +107,22 @@ salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int ke
 		j = 4;
 	}
 	else if((keylen < SALSA32) && (keylen > 0)){
-		ctx->keylen = SALSA16;
+		ctx->keylen = keylen;
 		expand = (uint8_t *)key_expand_16;
 		j = 0;
 	}
 	else
 	     	return -1;
 
-	memcpy(ctx->key, key, keylen);
+	if((ivlen > 0) && (ivlen <= 8))
+		ctx->ivlen = ivlen;
+	else
+		return -1;
+
+	memcpy(ctx->key, key, ctx->keylen);
 
 	// Fill the iv user data: iv[0] - iv[7].
-	memcpy(ctx->iv, iv, 8);
+	memcpy(ctx->iv, iv, ctx->ivlen);
 	
 	// Fill the iv: iv[8] - iv[15].
 	for(i = 8; i < 16; i++)
@@ -197,7 +204,7 @@ void
 salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
 {
 	uint32_t keystream[16];
-	int i;
+	uint32_t i;
 	
 	for(; buflen >= 64; buflen -= 64, buf += 64, out += 64) {
 		salsa20(ctx, keystream);
