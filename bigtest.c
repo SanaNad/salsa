@@ -1,4 +1,5 @@
-/* Big test salsa.h
+/* 
+ * Big test salsa.h
  * Example: 
  * encrypt - ./bigtest -t 1 -b 1000000 -i file1 -o file2
  * decrypt - ./bigtest -t 2 -b 1000000 -i file2 -o file3
@@ -65,9 +66,9 @@ int
 main(int argc, char *argv[])
 {
 	FILE *fp, *fd;
-	struct salsa_context *ctx;
+	struct salsa_context ctx;
 	uint32_t byte, block = 10000;
-	uint8_t *buf, *out, key[32], iv[2];
+	uint8_t *buf, *out, key[32], iv[8];
 	char file1[MAX_FILE], file2[MAX_FILE];
 	int res, action = 1;
 
@@ -109,26 +110,21 @@ main(int argc, char *argv[])
 	memset(key, 'k', sizeof(key));
 	memset(iv, 'i', sizeof(iv));
 
-	if((ctx = salsa_context_new()) == NULL) {
-		printf("Memory allocation error!\n");
-		exit(1);
-	}
+	salsa_init(&ctx);
 
-	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, 32, iv, 2)) {
+	if(salsa_set_key_and_iv(&ctx, (uint8_t *)key, 32, iv, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 	
 	while((byte = fread(buf, 1, block, fp)) > 0) {
 		if(action == 1)
-			salsa_encrypt(ctx, buf, byte, out);
+			salsa_encrypt(&ctx, buf, byte, out);
 		else
-			salsa_decrypt(ctx, buf, byte, out);
+			salsa_decrypt(&ctx, buf, byte, out);
 		
 		fwrite(out, 1, byte, fd);
 	}
-	
-	salsa_context_free(&ctx);
 	
 	free(buf);
 	free(out);

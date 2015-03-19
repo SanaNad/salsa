@@ -31,35 +31,25 @@ main(void)
 	uint8_t iv2[8] = { 0x01, 0x23, 0x45, 0x67,
 			   0x89, 0xAB, 0xCD, 0xEF };
 	
-	struct salsa_context *ctx;
+	struct salsa_context ctx;
 	
-	if((ctx = salsa_context_new()) == NULL) {
-		printf("Memory allocation error!\n");
-		exit(1);
-	}
+	salsa_init(&ctx);
 
-	if(salsa_set_key_and_iv(ctx, key1, 32, iv1, 8)) {
+	if(salsa_set_key_and_iv(&ctx, key1, 32, iv1, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 	
-	salsa_test_vectors(ctx);
+	salsa_test_vectors(&ctx);
 
-	salsa_context_free(&ctx);
+	salsa_init(&ctx);
 
-	if((ctx = salsa_context_new()) == NULL) {
-		printf("Memory allocation error!\n");
-		exit(1);
-	}
-
-	if(salsa_set_key_and_iv(ctx, key2, 32, iv2, 8)) {
+	if(salsa_set_key_and_iv(&ctx, key2, 32, iv2, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 
-	salsa_test_vectors(ctx);
-
-	salsa_context_free(&ctx);
+	salsa_test_vectors(&ctx);
 
 	return 0;
 }

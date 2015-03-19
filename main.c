@@ -8,7 +8,7 @@
 
 #include "salsa.h"
 
-#define	BUFLEN	10000000
+#define	BUFLEN	100000000
 #define KEYLEN	32
 
 // Struct for time value
@@ -45,9 +45,9 @@ time_stop(void)
 }
 
 int 
-main()
+main(void)
 {
-	struct salsa_context *ctx;
+	struct salsa_context ctx;
 
 	memset(buf, 'q', sizeof(buf));
 	memset(key, 'k', sizeof(key));
@@ -55,29 +55,26 @@ main()
 	
 	time_start();
 	
-	if((ctx = salsa_context_new()) == NULL) {
-		printf("Memory allocation error!\n");
-		exit(1);
-	}
-	
-	if (salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv, 8)) {
+	salsa_init(&ctx);
+
+	if (salsa_set_key_and_iv(&ctx, (uint8_t *)key, KEYLEN, iv, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 	
-	salsa_encrypt(ctx, buf, BUFLEN, out1);
+	salsa_encrypt(&ctx, buf, BUFLEN, out1);
 	
-	if(salsa_set_key_and_iv(ctx, (uint8_t *)key, KEYLEN, iv, 8)) {
+	salsa_init(&ctx);
+
+	if(salsa_set_key_and_iv(&ctx, (uint8_t *)key, KEYLEN, iv, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 
-	salsa_decrypt(ctx, out1, BUFLEN, out2);
+	salsa_decrypt(&ctx, out1, BUFLEN, out2);
 	
 	printf("Run time = %d\n\n", time_stop());
 	
-	salsa_context_free(&ctx);
-
 	return 0;
 }
 

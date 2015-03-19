@@ -10,7 +10,7 @@
  * Salsa20 operations based on a 32-bit summation bitwise (XOR) and shift operations.
  * The algorithm uses a hash function with 20 cycles.
  * ----------------------
- * Russia, Komi Republic, Syktyvkar - 15.02.2015, version 3.
+ * Russia, Komi Republic, Syktyvkar - 15.02.2015, version 5.
 */
 
 #include <stdio.h>
@@ -40,43 +40,12 @@
 	(((uint32_t)((p)[0])      ) | ((uint32_t)((p)[1]) << 8) | 	\
 	 ((uint32_t)((p)[2]) << 16) | ((uint32_t)((p)[3]) << 24))
 
-/* 
- * Salsa context
- * keylen - chiper key length in bytes
- * ivlen - vector initialization length in bytes
- * key - chiper key
- * iv - 16-byte array with a unique number. 8 bytes are filled by the user
- * x - intermediate array
-*/
-struct salsa_context {
-	int keylen;
-	int ivlen;
-	uint8_t key[SALSA32];
-	uint8_t iv[16];
-	uint32_t x[16];
-};
 
-// Allocates memory for the salsa context
-struct salsa_context * 
-salsa_context_new(void)
-{
-	struct salsa_context *ctx;
-	ctx = (struct salsa_context *)malloc(sizeof(*ctx));
-
-	if(ctx == NULL)
-		return NULL;
-
-	memset(ctx, 0, sizeof(*ctx));
-	
-	return ctx;
-}
-
-// Delete salsa context
+// Initialization function
 void
-salsa_context_free(struct salsa_context **ctx)
+salsa_init(struct salsa_context *ctx)
 {
-	free(*ctx);
-	*ctx = NULL;
+	memset(ctx, 0, sizeof(*ctx));
 }
 
 // Fill the salsa context (key and iv)
