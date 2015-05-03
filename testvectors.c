@@ -33,16 +33,12 @@ main(void)
 	
 	struct salsa_context ctx;
 	
-	salsa_init(&ctx);
-
 	if(salsa_set_key_and_iv(&ctx, key1, 32, iv1, 8)) {
 		printf("Salsa context filling error!\n");
 		exit(1);
 	}
 	
 	salsa_test_vectors(&ctx);
-
-	salsa_init(&ctx);
 
 	if(salsa_set_key_and_iv(&ctx, key2, 32, iv2, 8)) {
 		printf("Salsa context filling error!\n");

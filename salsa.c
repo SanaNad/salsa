@@ -42,7 +42,7 @@
 
 
 // Initialization function
-void
+static void
 salsa_init(struct salsa_context *ctx)
 {
 	memset(ctx, 0, sizeof(*ctx));
@@ -69,6 +69,8 @@ salsa_set_key_and_iv(struct salsa_context *ctx, const uint8_t *key, const int ke
 		'2', '-', 'b', 'y',
 		't', 'e', ' ', 'k'
 	};
+
+	salsa_init(ctx);
 
 	if(keylen == SALSA32) {
 		ctx->keylen = SALSA32;
@@ -170,7 +172,7 @@ salsa20(struct salsa_context *ctx, uint32_t *keystream)
  * buflen - length the data buffer
 */
 void
-salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
+salsa_crypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
 {
 	uint32_t keystream[16];
 	uint32_t i;
@@ -213,13 +215,6 @@ salsa_encrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, ui
 			out[i] = buf[i] ^ ((uint8_t *)keystream)[i];
 	}
 
-}
-
-// Salsa decrypt function. See salsa_encrypt
-void
-salsa_decrypt(struct salsa_context *ctx, const uint8_t *buf, uint32_t buflen, uint8_t *out)
-{
-	salsa_encrypt(ctx, buf, buflen, out);
 }
 
 #if __BYTE_ORDER == __BIG_ENDIAN
